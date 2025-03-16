@@ -1,0 +1,16 @@
+{
+  "data_dir": "/data",
+  "output_dir": "/output",
+  "chunk_size": 1000,
+  "chunk_overlap": 200,
+  "embedding_model": "text-embedding-3-small",
+  "batch_size": 10,
+  "db_path": "/db",
+  "supported_extensions": [".md", ".txt"],
+  "priority_files": [],
+  "ignore_files": ["README.md"],
+  "embedding_model_options": {
+    "text-embedding-3-small": "Optimized for speed and cost-effectiveness with good quality.",
+    "text-embedding-3-large": "Optimized for highest quality embeddings but slower and more expensive."
+  }
+}

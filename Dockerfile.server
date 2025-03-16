@@ -1,0 +1,36 @@
+# Dockerfile for the MCP Server
+FROM python:3.11.8-slim
+
+WORKDIR /app
+
+# Set environment variables for proper encoding
+ENV PYTHONIOENCODING=utf-8
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+
+# Install dependencies
+COPY requirements.server.txt .
+RUN pip install --no-cache-dir -r requirements.server.txt
+
+# Copy application code
+COPY src/server.py .
+COPY src/utils/ ./utils/
+
+# Create directories
+RUN mkdir -p /db /config
+
+# Set environment variables
+ENV PYTHONPATH=/app
+ENV OPENAI_API_KEY=""
+ENV ANTHROPIC_API_KEY=""
+ENV DB_PATH="/db"
+ENV CONFIG_PATH="/config/server_config.json"
+# Set default values for custom embedding variables to avoid warnings
+ENV CUSTOM_EMBEDDING_MODULE=""
+ENV CUSTOM_EMBEDDING_FUNCTION=""
+
+# Expose port for HTTP transport (optional)
+EXPOSE 8080
+
+# Set entrypoint
+ENTRYPOINT ["python", "server.py"]

@@ -1,0 +1,10 @@
+{
+  "db_path": "/db",
+  "embedding_model": "text-embedding-3-small",
+  "claude_model": "claude-3-7-sonnet-20240307",
+  "max_results": 10,
+  "transport": "stdio",
+  "use_anthropic": true,
+  "custom_embedding_module": null,
+  "custom_embedding_function": null
+}
