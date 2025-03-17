@@ -33,7 +33,7 @@ The MCP Server has been fully implemented with the following features:
 
 ### 2.2 Key Features
 
-- **Support for Multiple File Types**: Processes both Markdown (.md) and text (.txt) files, with the ability to configure additional file types.
+- **Support for Multiple File Types**: Processes Markdown (.md), text (.txt), PDF (.pdf), and Word (.docx, .doc) files, with the ability to configure additional file types.
 - **Configurable Chunking**: Adjustable chunk size and overlap via environment variables.
 - **Embedding Options**: Support for OpenAI embeddings or custom embedding functions.
 - **Flexible Response Generation**: Can use Claude API or rely on the client for processing.
@@ -53,7 +53,7 @@ CHUNK_SIZE=1000                # Size of text chunks
 CHUNK_OVERLAP=200              # Overlap between chunks (in tokens)
 BATCH_SIZE=10                  # Batch size for embedding generation
 EMBEDDING_MODEL=text-embedding-ada-002  # OpenAI embedding model to use
-SUPPORTED_EXTENSIONS=.md,.txt  # Comma-separated list of supported file extensions
+SUPPORTED_EXTENSIONS=.md,.txt,.pdf,.docx,.doc  # Comma-separated list of supported file extensions
 
 # Server Configuration
 CLAUDE_MODEL=claude-3-7-sonnet-20240307  # Claude model to use
@@ -104,7 +104,7 @@ mcp-server/
 
 1. Clone the repository
 2. Create a `.env` file with your configuration (copy from `.env.example`)
-3. Place your Markdown and text files in the `data/` directory
+3. Place your files (Markdown, text, PDF, Word) in the `data/` directory
 
 ### 4.2 Running the Pipeline
 

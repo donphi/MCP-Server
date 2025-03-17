@@ -8,12 +8,29 @@ ENV PYTHONIOENCODING=utf-8
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 
-# Install dependencies
+# Set the spaCy model name to use
+ENV SPACY_MODEL="en_core_web_md"
+
+# Install only essential system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    poppler-utils \
+    tesseract-ocr \
+    libreoffice-writer \
+    build-essential \
+    libgl1 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Upgrade pip
 COPY requirements.pipeline.txt .
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
+# Install dependencies 
 RUN pip install --no-cache-dir -r requirements.pipeline.txt
 
-# Pre-install sentence-transformers to avoid runtime installation issues
-RUN pip install --no-cache-dir sentence-transformers
+# Install spaCy separately - quotes around version to avoid shell issues
+RUN pip install --no-cache-dir "spacy>=3.6.0" && \
+    python -m spacy download en_core_web_md
 
 # Copy application code
 COPY src/pipeline.py .

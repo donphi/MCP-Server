@@ -1,10 +1,15 @@
 {
-  "db_path": "/db",
-  "embedding_model": "text-embedding-3-small",
-  "claude_model": "claude-3-7-sonnet-20240307",
-  "max_results": 10,
-  "transport": "stdio",
-  "use_anthropic": true,
-  "custom_embedding_module": null,
-  "custom_embedding_function": null
+    "db_path": "/db",
+    "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+    "claude_model": "claude-3-7-sonnet-20240307",
+    "max_results": 10,
+    "transport": "stdio",
+    "use_anthropic": true,
+    "embedding_model_options": {
+        "text-embedding-3-small": "Optimized for speed and cost-effectiveness with good quality (PAID).",
+        "text-embedding-3-large": "Optimized for highest quality embeddings but slower and more expensive (PAID).",
+        "sentence-transformers/all-MiniLM-L6-v2": "A compact model for efficient embeddings and rapid retrieval (FREE).",
+        "BAAI/bge-m3": "Versatile model supporting 100+ languages and inputs up to 8192 tokens (FREE).",
+        "Snowflake/snowflake-arctic-embed-m": "Optimized for high-quality retrieval balancing accuracy and speed (FREE)."
+    }
 }

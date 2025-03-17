@@ -40,7 +40,16 @@ class EmbeddingGenerator:
         # Initialize Hugging Face model if needed
         self.hf_model = None
         if self.model_type == "huggingface":
-            if not HUGGINGFACE_AVAILABLE:
+            # Check again for sentence-transformers availability, don't rely on initial import
+            try:
+                import importlib
+                import sentence_transformers
+                from sentence_transformers import SentenceTransformer
+                huggingface_available = True
+            except ImportError:
+                huggingface_available = False
+                
+            if not huggingface_available:
                 print("ERROR: sentence-transformers package not installed. Run: pip install sentence-transformers")
                 sys.exit(1)
             try:

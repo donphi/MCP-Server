@@ -1,0 +1,25 @@
+services:
+  chunk-analysis:
+    build:
+      context: ..
+      dockerfile: chunk_analysis/Dockerfile
+    volumes:
+      - ../data:/data:ro
+      - ./test_chunks:/test_chunks
+      - ../.env:/app/.env:ro
+      - ../src:/app/src:ro
+      - ../config:/app/config:ro
+    env_file:
+      - ../.env
+    environment:
+      - PYTHONPATH=/app:/app/src
+      - CONFIG_PATH=/app/config/pipeline_config.json
+      - CHUNK_SIZE=${CHUNK_SIZE:-1000}
+      - CHUNK_OVERLAP=${CHUNK_OVERLAP:-200}
+      - DATA_DIR=/data
+      - OUTPUT_DIR=/test_chunks
+      - SPACY_MODEL=en_core_web_sm
+      - PYTHON_UNBUFFERED=1
+    # Enable interactive mode
+    stdin_open: true
+    tty: true

@@ -1,5 +1,5 @@
 """
-MCP Server for providing access to processed Markdown files.
+MCP Server for providing access to processed documents.
 """
 import os
 import json
@@ -175,7 +175,7 @@ def get_stored_embedding_model():
             return None
             
         # Query a small sample to determine the model
-        dummy_embedding = [0.0] * 768  # Most models use 768 dimensions
+        dummy_embedding = [0.0] * 768  # most models use 768 dimensions
         try:
             results = vector_db.search(
                 query_embedding=dummy_embedding,
@@ -184,7 +184,7 @@ def get_stored_embedding_model():
         except Exception as e:
             # If the dummy embedding fails (wrong dimensions), try another size
             try:
-                dummy_embedding = [0.0] * 1024  # Some models use 1024 dimensions
+                dummy_embedding = [0.0] * 1024  # some models use 1024 dimensions
                 results = vector_db.search(
                     query_embedding=dummy_embedding,
                     n_results=1
@@ -292,7 +292,8 @@ async def process_query(query: str) -> str:
         for i, (doc, meta) in enumerate(zip(documents, metadatas)):
             source = meta.get('source', 'Unknown')
             title = meta.get('title', 'Untitled')
-            context += f"Document {i+1} (from {source}, title: {title}):\n{doc}\n\n"
+            file_type = meta.get('file_type', 'unknown')
+            context += f"Document {i+1} (from {source}, title: {title}, type: {file_type}):\n{doc}\n\n"
         
         # If Anthropic client is available, use it to generate a response
         if claude_client:
@@ -314,7 +315,7 @@ async def process_query(query: str) -> str:
 @mcp.tool()
 async def read_md_files(file_path: str = None) -> str:
     """
-    Read and process Markdown files.
+    Read and process files.
     
     Args:
         file_path: Optional path to a specific file or directory
@@ -322,7 +323,7 @@ async def read_md_files(file_path: str = None) -> str:
     Returns:
         Information about the processed files
     """
-    query = f"Provide information about the Markdown files"
+    query = f"Provide information about the files"
     if file_path:
         query += f" in {file_path}"
     return await process_query(query)
@@ -400,6 +401,24 @@ if __name__ == "__main__":
         print(f"  Database created with: {stored_model}")
         if model_type != "Unknown":
             print(f"  Using compatible model: {config.embedding_model}")
+    
+    # Print supported file types from the database
+    try:
+        file_types = set()
+        results = vector_db.search(
+            query_embedding=[0.0] * 768,
+            n_results=100
+        )
+        for metadata_list in results.get('metadatas', []):
+            for metadata in metadata_list:
+                if 'file_type' in metadata:
+                    file_types.add(metadata['file_type'])
+        
+        if file_types:
+            print(f"  Documents in database: {', '.join(file_types)}")
+    except Exception:
+        # Ignore errors when trying to detect file types
+        pass
     
     # Set binary mode for stdin/stdout to avoid encoding issues
     if hasattr(sys.stdout, 'reconfigure'):

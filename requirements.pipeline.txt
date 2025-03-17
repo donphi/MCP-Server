@@ -6,3 +6,13 @@ openai>=1.0.0
 python-dotenv>=1.0.0
 unstructured>=0.10.0
 chromadb>=0.4.0
+# Document type support
+pypdf>=3.15.1
+python-docx>=0.8.11
+docx2txt>=0.8
+# Additional unstructured dependencies for PDFs and Word docs
+unstructured[pdf,docx]>=0.10.0
+# spaCy with pre-built wheel (to avoid compilation issues)
+spacy>=3.6.0,<3.7.0
+# Optional OCR support for scanned documents
+pytesseract>=0.3.10
