@@ -6,6 +6,8 @@ import json
 import hashlib
 import importlib.util
 import sys
+import subprocess
+import importlib
 from typing import List, Dict, Any, Optional, Callable
 import dotenv
 
@@ -72,6 +74,36 @@ class PipelineConfig:
             'Snowflake/snowflake-arctic-embed-m': 'Optimized for high-quality retrieval balancing accuracy and speed (FREE - no API key required).'
         }
     
+    def install_sentence_transformers(self):
+        """
+        Install the sentence-transformers package and properly import it.
+        
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            print("\nInstalling sentence-transformers package...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "sentence-transformers"])
+            print("Successfully installed sentence-transformers.")
+            
+            # Force reload of the module
+            if 'sentence_transformers' in sys.modules:
+                del sys.modules['sentence_transformers']
+            
+            # Try to import again
+            try:
+                import sentence_transformers
+                from sentence_transformers import SentenceTransformer
+                globals()['HUGGINGFACE_AVAILABLE'] = True
+                self.sentence_transformers_module = sentence_transformers
+                return True
+            except ImportError as e:
+                print(f"ERROR: Still couldn't import sentence_transformers after installation: {e}")
+                return False
+        except subprocess.CalledProcessError as e:
+            print(f"ERROR: Failed to install sentence-transformers: {e}")
+            return False
+    
     def prompt_for_embedding_model(self):
         """
         Prompt the user to select an embedding model.
@@ -92,7 +124,7 @@ class PipelineConfig:
         # If sentence-transformers is not installed, we need to inform the user
         if not HUGGINGFACE_AVAILABLE:
             print("  NOTE: sentence-transformers package not installed.")
-            print("  Install with: pip install sentence-transformers\n")
+            print("  Installation will be offered if you select a free model.\n")
         
         for i, model in enumerate(free_models):
             print(f"  {i+1}. {model}")
@@ -131,34 +163,35 @@ class PipelineConfig:
                         choice = str(default_index)
                     choice = int(choice)
                     if 1 <= choice <= len(all_models):
-                        self.embedding_model = all_models[choice-1]
+                        selected_model = all_models[choice-1]
+                        self.embedding_model = selected_model
                         print(f"\nSelected model: {self.embedding_model}")
                         
-                        # Install sentence-transformers if needed and selected a Hugging Face model
-                        if not HUGGINGFACE_AVAILABLE and (self.embedding_model.startswith('sentence-transformers/') or self.embedding_model.find('/') != -1):
-                            print("\nThe selected model requires the sentence-transformers package.")
-                            install = input("Would you like to install it now? (y/n): ")
-                            if install.lower() == 'y':
-                                print("Installing sentence-transformers...")
-                                import subprocess
-                                try:
-                                    subprocess.check_call([sys.executable, "-m", "pip", "install", "sentence-transformers"])
-                                    print("Successfully installed sentence-transformers.")
-                                    # Try to import again
-                                    try:
-                                        from sentence_transformers import SentenceTransformer
+                        # Handle Hugging Face model selection
+                        if (selected_model.startswith('sentence-transformers/') or
+                            selected_model.startswith('BAAI/') or
+                            selected_model.startswith('Snowflake/') or 
+                            selected_model.find('/') != -1):
+                            
+                            # Ensure sentence-transformers is installed
+                            if not HUGGINGFACE_AVAILABLE:
+                                install = input("This model requires the sentence-transformers package. Install it now? (y/n): ")
+                                if install.lower().startswith('y'):
+                                    if self.install_sentence_transformers():
+                                        print("Successfully installed and imported sentence-transformers.")
                                         globals()['HUGGINGFACE_AVAILABLE'] = True
-                                    except ImportError:
-                                        print("ERROR: Failed to import sentence-transformers after installation.")
+                                        break
+                                    else:
+                                        print("ERROR: Failed to install or import sentence-transformers.")
+                                        print("Please select a different model or install the package manually.")
                                         continue
-                                except subprocess.CalledProcessError:
-                                    print("ERROR: Failed to install sentence-transformers.")
+                                else:
+                                    print("WARNING: You selected a model that requires sentence-transformers, but chose not to install it.")
+                                    print("Please select a different model or install the package manually.")
                                     continue
-                            else:
-                                print("WARNING: You selected a model that requires sentence-transformers, but chose not to install it.")
-                                print("Please select a different model or install the package manually.")
-                                continue
-                        break
+                            break
+                        else:
+                            break
                     else:
                         print(f"Please enter a number between 1 and {len(all_models)}")
                 except ValueError:
@@ -209,26 +242,11 @@ class PipelineConfig:
                                     break
                                 else:
                                     print("\nError: sentence-transformers package not installed.")
-                                    install = input("Would you like to install it now? (y/n): ")
-                                    if install.lower() == 'y':
-                                        print("Installing sentence-transformers...")
-                                        import subprocess
-                                        try:
-                                            subprocess.check_call([sys.executable, "-m", "pip", "install", "sentence-transformers"])
-                                            print("Successfully installed sentence-transformers.")
-                                            # Try to import again
-                                            try:
-                                                from sentence_transformers import SentenceTransformer
-                                                globals()['HUGGINGFACE_AVAILABLE'] = True
-                                                self.embedding_model = 'sentence-transformers/all-MiniLM-L6-v2'
-                                                print(f"\nSwitched to free model: {self.embedding_model}")
-                                                break
-                                            except ImportError:
-                                                print("ERROR: Failed to import sentence-transformers after installation.")
-                                                return False
-                                        except subprocess.CalledProcessError:
-                                            print("ERROR: Failed to install sentence-transformers.")
-                                            return False
+                                    print("Installing sentence-transformers package...")
+                                    if self.install_sentence_transformers():
+                                        self.embedding_model = 'sentence-transformers/all-MiniLM-L6-v2'
+                                        print(f"\nSwitched to free model: {self.embedding_model}")
+                                        break
                                     else:
                                         print("Cannot proceed without either an OpenAI API key or the sentence-transformers package.")
                                         return False
@@ -246,26 +264,15 @@ class PipelineConfig:
                         return False
         
         # For Hugging Face models, check if the package is installed
-        if (self.embedding_model.startswith('sentence-transformers/') or '/' in self.embedding_model) and not HUGGINGFACE_AVAILABLE:
-            print("\nERROR: sentence-transformers package not installed but required for the selected model.")
+        if (self.embedding_model.startswith('sentence-transformers/') or 
+            self.embedding_model.startswith('BAAI/') or
+            self.embedding_model.startswith('Snowflake/') or
+            '/' in self.embedding_model) and not HUGGINGFACE_AVAILABLE:
+            print("\nWARNING: sentence-transformers package not installed but required for the selected model.")
             if interactive:
                 install = input("Would you like to install it now? (y/n): ")
-                if install.lower() == 'y':
-                    print("Installing sentence-transformers...")
-                    import subprocess
-                    try:
-                        subprocess.check_call([sys.executable, "-m", "pip", "install", "sentence-transformers"])
-                        print("Successfully installed sentence-transformers.")
-                        # Try to import again
-                        try:
-                            from sentence_transformers import SentenceTransformer
-                            globals()['HUGGINGFACE_AVAILABLE'] = True
-                        except ImportError:
-                            print("ERROR: Failed to import sentence-transformers after installation.")
-                            return False
-                    except subprocess.CalledProcessError:
-                        print("ERROR: Failed to install sentence-transformers.")
-                        return False
+                if install.lower().startswith('y'):
+                    return self.install_sentence_transformers()
                 else:
                     print("Cannot proceed with the selected model without the sentence-transformers package.")
                     return False
@@ -584,6 +591,21 @@ class Pipeline:
                 print(f"Using custom embedding function {self.config.custom_embedding_function} from {self.config.custom_embedding_module}")
             else:
                 print(f"Failed to load custom embedding function. Falling back to OpenAI or Hugging Face.")
+        
+        # Verify one last time that sentence-transformers is available if needed
+        if (self.config.embedding_model.startswith('sentence-transformers/') or 
+            self.config.embedding_model.startswith('BAAI/') or
+            self.config.embedding_model.startswith('Snowflake/') or
+            '/' in self.config.embedding_model):
+            # Double-check that sentence-transformers is really installed
+            try:
+                from sentence_transformers import SentenceTransformer
+                print("Sentence Transformers package is available.")
+            except ImportError:
+                print("Final check: sentence-transformers not found. Installing...")
+                if not self.config.install_sentence_transformers():
+                    print("ERROR: Could not install sentence-transformers. Pipeline will likely fail.")
+                    sys.exit(1)
         
         self.embedding_generator = EmbeddingGenerator(
             api_key=self.config.openai_api_key,

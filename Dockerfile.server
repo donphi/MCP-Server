@@ -12,6 +12,9 @@ ENV LC_ALL=C.UTF-8
 COPY requirements.server.txt .
 RUN pip install --no-cache-dir -r requirements.server.txt
 
+# Pre-install sentence-transformers to avoid runtime installation issues
+RUN pip install --no-cache-dir sentence-transformers
+
 # Copy application code
 COPY src/server.py .
 COPY src/utils/ ./utils/

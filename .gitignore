@@ -52,3 +52,11 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
+
+# App
+mcp-config.json
+data/DaisyUI.txt
+data/Tailwinddoc.txt
+db//db/*
+# Except for .gitkeep
+!/db/.gitkeet

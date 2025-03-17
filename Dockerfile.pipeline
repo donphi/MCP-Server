@@ -1,19 +1,19 @@
-# Dockerfile for the MCP Server Pipeline
+# Dockerfile for the MCP Pipeline
 FROM python:3.11.8-slim
 
 WORKDIR /app
 
-# Install LangChain packages with specific order and upgrade pip
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir \
-    langchain-core==0.2.39 \
-    langchain==0.2.16 \
-    langchain-community==0.2.16 \
-    langchain-text-splitters==0.2.4
+# Set environment variables for proper encoding
+ENV PYTHONIOENCODING=utf-8
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
 
-# Install other dependencies
+# Install dependencies
 COPY requirements.pipeline.txt .
 RUN pip install --no-cache-dir -r requirements.pipeline.txt
+
+# Pre-install sentence-transformers to avoid runtime installation issues
+RUN pip install --no-cache-dir sentence-transformers
 
 # Copy application code
 COPY src/pipeline.py .
@@ -25,6 +25,9 @@ RUN mkdir -p /data /output /db /config
 # Set environment variables
 ENV PYTHONPATH=/app
 ENV OPENAI_API_KEY=""
+ENV DATA_DIR="/data"
+ENV OUTPUT_DIR="/output"
+ENV DB_PATH="/db"
 ENV CONFIG_PATH="/config/pipeline_config.json"
 # Set default values for custom embedding variables to avoid warnings
 ENV CUSTOM_EMBEDDING_MODULE=""
