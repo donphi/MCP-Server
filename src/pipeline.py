@@ -12,6 +12,13 @@ import dotenv
 # Import directly from langchain_community
 from langchain_community.document_loaders import UnstructuredMarkdownLoader, TextLoader
 
+# Add Hugging Face support
+try:
+    from sentence_transformers import SentenceTransformer
+    HUGGINGFACE_AVAILABLE = True
+except ImportError:
+    HUGGINGFACE_AVAILABLE = False
+
 from utils.chunking import ChunkingEngine
 from utils.embedding import EmbeddingGenerator
 from utils.vector_db import VectorDatabaseWriter
@@ -54,34 +61,111 @@ class PipelineConfig:
         self.ignore_files = config.get('ignore_files', ['README.md'])
         
         # Embedding model options
-        self.embedding_model_options = config.get('embedding_model_options', {
-            'text-embedding-3-small': 'Optimized for speed and cost-effectiveness with good quality.',
-            'text-embedding-3-large': 'Optimized for highest quality embeddings but slower and more expensive.'
-        })
+        self.embedding_model_options = {
+            # OpenAI paid models
+            'text-embedding-3-small': 'Optimized for speed and cost-effectiveness with good quality (PAID - requires OpenAI API key).',
+            'text-embedding-3-large': 'Highest quality embeddings but slower and more expensive (PAID - requires OpenAI API key).',
+            
+            # Free Hugging Face models
+            'sentence-transformers/all-MiniLM-L6-v2': 'A compact model for efficient embeddings and rapid retrieval (FREE - no API key required).',
+            'BAAI/bge-m3': 'Versatile model supporting 100+ languages and inputs up to 8192 tokens (FREE - no API key required).',
+            'Snowflake/snowflake-arctic-embed-m': 'Optimized for high-quality retrieval balancing accuracy and speed (FREE - no API key required).'
+        }
     
     def prompt_for_embedding_model(self):
         """
         Prompt the user to select an embedding model.
         """
-        print("\nAvailable embedding models:")
-        models = list(self.embedding_model_options.keys())
-        for i, model in enumerate(models):
-            print(f"  {i+1}. {model}: {self.embedding_model_options[model]}")
+        # If OpenAI API key is not set, only allow Hugging Face models
+        openai_available = self.openai_api_key and not self.openai_api_key.startswith("your_")
         
-        while True:
-            try:
-                choice = input(f"\nSelect embedding model (1-{len(models)}) [default: 1]: ")
-                if choice.strip() == "":
-                    choice = "1"
-                choice = int(choice)
-                if 1 <= choice <= len(models):
-                    self.embedding_model = models[choice-1]
-                    print(f"\nSelected model: {self.embedding_model}")
-                    break
-                else:
-                    print(f"Please enter a number between 1 and {len(models)}")
-            except ValueError:
-                print("Please enter a valid number")
+        print("\nAvailable embedding models:")
+        
+        # Split into paid and free sections
+        print("\nFREE Models (no API key required):")
+        free_models = [
+            'sentence-transformers/all-MiniLM-L6-v2',
+            'BAAI/bge-m3',
+            'Snowflake/snowflake-arctic-embed-m'
+        ]
+        
+        # If sentence-transformers is not installed, we need to inform the user
+        if not HUGGINGFACE_AVAILABLE:
+            print("  NOTE: sentence-transformers package not installed.")
+            print("  Install with: pip install sentence-transformers\n")
+        
+        for i, model in enumerate(free_models):
+            print(f"  {i+1}. {model}")
+            print(f"     {self.embedding_model_options.get(model, 'No description available')}")
+        
+        # Only show paid models if the OpenAI API key is available
+        paid_models = []
+        if openai_available:
+            print("\nPAID Models (require OpenAI API key):")
+            paid_models = [
+                'text-embedding-3-small',
+                'text-embedding-3-large'
+            ]
+            for i, model in enumerate(paid_models):
+                print(f"  {len(free_models) + i + 1}. {model}")
+                print(f"     {self.embedding_model_options.get(model, 'No description available')}")
+        
+        # Combine all available models
+        all_models = free_models + paid_models
+        
+        # Set default model - prefer free models
+        default_model = 'sentence-transformers/all-MiniLM-L6-v2' if HUGGINGFACE_AVAILABLE else \
+                       'text-embedding-3-small' if openai_available else 'sentence-transformers/all-MiniLM-L6-v2'
+        
+        # Find the index of the default model
+        try:
+            default_index = all_models.index(default_model) + 1
+        except ValueError:
+            default_index = 1 if all_models else 0
+        
+        if all_models:
+            while True:
+                try:
+                    choice = input(f"\nSelect embedding model (1-{len(all_models)}) [default: {default_index}]: ")
+                    if choice.strip() == "":
+                        choice = str(default_index)
+                    choice = int(choice)
+                    if 1 <= choice <= len(all_models):
+                        self.embedding_model = all_models[choice-1]
+                        print(f"\nSelected model: {self.embedding_model}")
+                        
+                        # Install sentence-transformers if needed and selected a Hugging Face model
+                        if not HUGGINGFACE_AVAILABLE and (self.embedding_model.startswith('sentence-transformers/') or self.embedding_model.find('/') != -1):
+                            print("\nThe selected model requires the sentence-transformers package.")
+                            install = input("Would you like to install it now? (y/n): ")
+                            if install.lower() == 'y':
+                                print("Installing sentence-transformers...")
+                                import subprocess
+                                try:
+                                    subprocess.check_call([sys.executable, "-m", "pip", "install", "sentence-transformers"])
+                                    print("Successfully installed sentence-transformers.")
+                                    # Try to import again
+                                    try:
+                                        from sentence_transformers import SentenceTransformer
+                                        globals()['HUGGINGFACE_AVAILABLE'] = True
+                                    except ImportError:
+                                        print("ERROR: Failed to import sentence-transformers after installation.")
+                                        continue
+                                except subprocess.CalledProcessError:
+                                    print("ERROR: Failed to install sentence-transformers.")
+                                    continue
+                            else:
+                                print("WARNING: You selected a model that requires sentence-transformers, but chose not to install it.")
+                                print("Please select a different model or install the package manually.")
+                                continue
+                        break
+                    else:
+                        print(f"Please enter a number between 1 and {len(all_models)}")
+                except ValueError:
+                    print("Please enter a valid number")
+        else:
+            print("ERROR: No embedding models available. Please check your configuration.")
+            sys.exit(1)
     
     def validate(self, interactive=True):
         """
@@ -93,21 +177,100 @@ class PipelineConfig:
         Returns:
             True if validation passed, False otherwise
         """
-        # Check if OpenAI API key is set and not the default placeholder
-        if not self.openai_api_key or self.openai_api_key == "your_openai_api_key_here" or self.openai_api_key.startswith("your_"):
-            print("\nERROR: OpenAI API key is not set or is using the default placeholder value.")
-            print("Please set a valid OPENAI_API_KEY in your .env file or export it in your shell.")
-            
-            if interactive:
-                api_key = input("\nEnter your OpenAI API key: ")
-                if api_key.strip() and not api_key.startswith("your_") and api_key != "your_openai_api_key_here":
-                    self.openai_api_key = api_key
-                    os.environ['OPENAI_API_KEY'] = api_key
-                    print("API key set for this session.")
+        # For OpenAI models, check if API key is set
+        if self.embedding_model.startswith('text-embedding-'):
+            if not self.openai_api_key or self.openai_api_key == "your_openai_api_key_here" or self.openai_api_key.startswith("your_"):
+                print("\nWARNING: OpenAI API key is not set or is using the default placeholder value.")
+                print("You can either:")
+                print("  1. Set a valid OPENAI_API_KEY in your .env file")
+                print("  2. Choose a free Hugging Face model instead")
+                
+                if interactive:
+                    print("\nOptions:")
+                    print("  1. Enter an OpenAI API key")
+                    print("  2. Switch to a free Hugging Face model")
+                    
+                    while True:
+                        try:
+                            choice = input("\nSelect an option (1-2): ")
+                            if choice.strip() == "1":
+                                api_key = input("\nEnter your OpenAI API key: ")
+                                if api_key.strip() and not api_key.startswith("your_") and api_key != "your_openai_api_key_here":
+                                    self.openai_api_key = api_key
+                                    os.environ['OPENAI_API_KEY'] = api_key
+                                    print("API key set for this session.")
+                                    break
+                                else:
+                                    print("\nInvalid API key. Please try again.")
+                            elif choice.strip() == "2":
+                                if HUGGINGFACE_AVAILABLE:
+                                    self.embedding_model = 'sentence-transformers/all-MiniLM-L6-v2'
+                                    print(f"\nSwitched to free model: {self.embedding_model}")
+                                    break
+                                else:
+                                    print("\nError: sentence-transformers package not installed.")
+                                    install = input("Would you like to install it now? (y/n): ")
+                                    if install.lower() == 'y':
+                                        print("Installing sentence-transformers...")
+                                        import subprocess
+                                        try:
+                                            subprocess.check_call([sys.executable, "-m", "pip", "install", "sentence-transformers"])
+                                            print("Successfully installed sentence-transformers.")
+                                            # Try to import again
+                                            try:
+                                                from sentence_transformers import SentenceTransformer
+                                                globals()['HUGGINGFACE_AVAILABLE'] = True
+                                                self.embedding_model = 'sentence-transformers/all-MiniLM-L6-v2'
+                                                print(f"\nSwitched to free model: {self.embedding_model}")
+                                                break
+                                            except ImportError:
+                                                print("ERROR: Failed to import sentence-transformers after installation.")
+                                                return False
+                                        except subprocess.CalledProcessError:
+                                            print("ERROR: Failed to install sentence-transformers.")
+                                            return False
+                                    else:
+                                        print("Cannot proceed without either an OpenAI API key or the sentence-transformers package.")
+                                        return False
+                            else:
+                                print("Please enter either 1 or 2")
+                        except ValueError:
+                            print("Please enter a valid number")
                 else:
-                    print("\nInvalid API key. Please update your .env file with a valid OpenAI API key and run again.")
+                    # In non-interactive mode, switch to Hugging Face if available
+                    if HUGGINGFACE_AVAILABLE:
+                        self.embedding_model = 'sentence-transformers/all-MiniLM-L6-v2'
+                        print(f"\nAutomatically switched to free model: {self.embedding_model}")
+                    else:
+                        print("\nError: No valid embedding option available. Please set a valid OpenAI API key or install sentence-transformers.")
+                        return False
+        
+        # For Hugging Face models, check if the package is installed
+        if (self.embedding_model.startswith('sentence-transformers/') or '/' in self.embedding_model) and not HUGGINGFACE_AVAILABLE:
+            print("\nERROR: sentence-transformers package not installed but required for the selected model.")
+            if interactive:
+                install = input("Would you like to install it now? (y/n): ")
+                if install.lower() == 'y':
+                    print("Installing sentence-transformers...")
+                    import subprocess
+                    try:
+                        subprocess.check_call([sys.executable, "-m", "pip", "install", "sentence-transformers"])
+                        print("Successfully installed sentence-transformers.")
+                        # Try to import again
+                        try:
+                            from sentence_transformers import SentenceTransformer
+                            globals()['HUGGINGFACE_AVAILABLE'] = True
+                        except ImportError:
+                            print("ERROR: Failed to import sentence-transformers after installation.")
+                            return False
+                    except subprocess.CalledProcessError:
+                        print("ERROR: Failed to install sentence-transformers.")
+                        return False
+                else:
+                    print("Cannot proceed with the selected model without the sentence-transformers package.")
                     return False
             else:
+                print("Install it with: pip install sentence-transformers")
                 return False
         
         # Check if data directory exists
@@ -323,7 +486,8 @@ class TextProcessor:
         metadata = {
             'source': file_path,
             'title': self._extract_title(document.page_content, file_path),
-            'file_type': ext[1:]  # Remove the dot
+            'file_type': ext[1:],  # Remove the dot
+            'embedding_model': self.config.embedding_model  # Store the model used for embedding
         }
         
         return {
@@ -419,7 +583,7 @@ class Pipeline:
             if custom_embedding_function:
                 print(f"Using custom embedding function {self.config.custom_embedding_function} from {self.config.custom_embedding_module}")
             else:
-                print(f"Failed to load custom embedding function. Falling back to OpenAI.")
+                print(f"Failed to load custom embedding function. Falling back to OpenAI or Hugging Face.")
         
         self.embedding_generator = EmbeddingGenerator(
             api_key=self.config.openai_api_key,

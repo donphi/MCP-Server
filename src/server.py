@@ -4,12 +4,20 @@ MCP Server for providing access to processed Markdown files.
 import os
 import json
 import importlib.util
+import sys
 from typing import Dict, Any, List, Optional, Callable
 import dotenv
 from mcp.server.fastmcp import FastMCP
 from openai import OpenAI
 import anthropic
-import sys
+import numpy as np
+
+# Add Hugging Face support
+try:
+    from sentence_transformers import SentenceTransformer
+    HUGGINGFACE_AVAILABLE = True
+except ImportError:
+    HUGGINGFACE_AVAILABLE = False
 
 from utils.vector_db import VectorDatabaseReader
 
@@ -47,14 +55,27 @@ class ServerConfig:
         self.openai_api_key = os.environ.get('OPENAI_API_KEY')
         self.anthropic_api_key = os.environ.get('ANTHROPIC_API_KEY')
         
-        # Only require OpenAI API key if we're not using a custom embedding function
-        if not self.custom_embedding_module and not self.openai_api_key:
-            raise ValueError("OpenAI API key is required for embeddings when not using a custom embedding function")
+        # Only require OpenAI API key if we're using an OpenAI embedding model
+        if self.embedding_model.startswith("text-embedding-") and not self.openai_api_key:
+            print("WARNING: OpenAI API key is required for OpenAI embeddings. Will try to use Hugging Face model instead.")
+            self.embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
         
         # Only require Anthropic API key if we're using it
         if self.use_anthropic and not self.anthropic_api_key:
             print("WARNING: Anthropic API key not found. The server will rely on the client for LLM processing.")
             self.use_anthropic = False
+        
+        # Default embedding models
+        self.embedding_model_options = {
+            # OpenAI paid models
+            "text-embedding-3-small": "Optimized for speed and cost-effectiveness with good quality (PAID).",
+            "text-embedding-3-large": "Optimized for highest quality embeddings but slower and more expensive (PAID).",
+            
+            # Free Hugging Face models
+            "sentence-transformers/all-MiniLM-L6-v2": "A compact model for efficient embeddings and rapid retrieval (FREE).",
+            "BAAI/bge-m3": "Versatile model supporting 100+ languages and inputs up to 8192 tokens (FREE).",
+            "Snowflake/snowflake-arctic-embed-m": "Optimized for high-quality retrieval balancing accuracy and speed (FREE)."
+        }
 
 def load_custom_embedding_function(module_path: str, function_name: str) -> Optional[Callable]:
     """
@@ -97,7 +118,7 @@ vector_db = VectorDatabaseReader(config.db_path)
 
 # Initialize OpenAI client
 openai_client = None
-if config.openai_api_key:
+if config.openai_api_key and config.embedding_model.startswith("text-embedding-"):
     openai_client = OpenAI(api_key=config.openai_api_key)
 
 # Initialize Anthropic client if API key is available
@@ -115,7 +136,102 @@ if config.custom_embedding_module and config.custom_embedding_function:
     if custom_embedding_function:
         print(f"Using custom embedding function {config.custom_embedding_function} from {config.custom_embedding_module}")
     else:
-        print(f"Failed to load custom embedding function. Falling back to OpenAI.")
+        print(f"Failed to load custom embedding function. Falling back to OpenAI or Hugging Face.")
+
+# Initialize Hugging Face model if needed
+hf_model = None
+if config.embedding_model.startswith("sentence-transformers/") or \
+   config.embedding_model.startswith("BAAI/") or \
+   config.embedding_model.startswith("Snowflake/") or \
+   "/" in config.embedding_model:
+    if not HUGGINGFACE_AVAILABLE:
+        print("ERROR: sentence-transformers package not installed. Run: pip install sentence-transformers")
+        sys.exit(1)
+    try:
+        print(f"Loading Hugging Face model {config.embedding_model}...")
+        # For snowflake model, we need to specify the specific variant
+        model_name = config.embedding_model
+        if "snowflake-arctic-embed" in model_name and not model_name.endswith("-m"):
+            model_name = model_name + "-m"  # Use the medium variant by default
+            
+        hf_model = SentenceTransformer(model_name)
+        print(f"Successfully loaded {model_name}")
+    except Exception as e:
+        print(f"Error loading Hugging Face model: {e}")
+        sys.exit(1)
+
+# Get the model that was used for indexing
+def get_stored_embedding_model():
+    """
+    Determine which embedding model was used to create the database.
+    
+    Returns:
+        The embedding model name, or None if it couldn't be determined
+    """
+    try:
+        # Check if the database exists
+        if not os.path.exists(os.path.join(config.db_path, "chroma.sqlite3")):
+            print("WARNING: Vector database not found. You need to run the pipeline first.")
+            return None
+            
+        # Query a small sample to determine the model
+        dummy_embedding = [0.0] * 768  # Most models use 768 dimensions
+        try:
+            results = vector_db.search(
+                query_embedding=dummy_embedding,
+                n_results=1
+            )
+        except Exception as e:
+            # If the dummy embedding fails (wrong dimensions), try another size
+            try:
+                dummy_embedding = [0.0] * 1024  # Some models use 1024 dimensions
+                results = vector_db.search(
+                    query_embedding=dummy_embedding,
+                    n_results=1
+                )
+            except Exception as e:
+                print(f"WARNING: Could not determine model dimensions: {e}")
+                return None
+        
+        if 'metadatas' in results and results['metadatas'] and results['metadatas'][0]:
+            for metadata in results['metadatas'][0]:
+                if 'embedding_model' in metadata:
+                    return metadata['embedding_model']
+    except Exception as e:
+        print(f"Error getting stored embedding model: {e}")
+    
+    return None
+
+# Try to detect the embedding model used in the database
+stored_model = get_stored_embedding_model()
+if stored_model:
+    if stored_model != config.embedding_model:
+        print(f"WARNING: Database was created with '{stored_model}' but current setting is '{config.embedding_model}'")
+        print(f"Switching to '{stored_model}' for compatibility")
+        config.embedding_model = stored_model
+        
+        # Re-initialize clients if needed
+        if config.embedding_model.startswith("text-embedding-") and not openai_client and config.openai_api_key:
+            openai_client = OpenAI(api_key=config.openai_api_key)
+        elif (config.embedding_model.startswith("sentence-transformers/") or 
+             config.embedding_model.startswith("BAAI/") or 
+             config.embedding_model.startswith("Snowflake/") or
+             "/" in config.embedding_model) and not hf_model:
+            if not HUGGINGFACE_AVAILABLE:
+                print("ERROR: sentence-transformers package not installed. Run: pip install sentence-transformers")
+                sys.exit(1)
+            try:
+                print(f"Loading Hugging Face model {config.embedding_model}...")
+                # For snowflake model, we need to specify the specific variant
+                model_name = config.embedding_model
+                if "snowflake-arctic-embed" in model_name and not model_name.endswith("-m"):
+                    model_name = model_name + "-m"  # Use the medium variant by default
+                
+                hf_model = SentenceTransformer(model_name)
+                print(f"Successfully loaded {model_name}")
+            except Exception as e:
+                print(f"Error loading Hugging Face model: {e}")
+                sys.exit(1)
 
 async def generate_embedding(text: str) -> List[float]:
     """
@@ -131,6 +247,13 @@ async def generate_embedding(text: str) -> List[float]:
         # Use custom embedding function
         embeddings = custom_embedding_function([text])
         return embeddings[0]
+    elif hf_model and (config.embedding_model.startswith("sentence-transformers/") or 
+                      config.embedding_model.startswith("BAAI/") or 
+                      config.embedding_model.startswith("Snowflake/") or
+                      "/" in config.embedding_model):
+        # Use Hugging Face model
+        embedding = hf_model.encode([text])[0]
+        return embedding.tolist()
     elif openai_client:
         # Use OpenAI with the new API format
         response = openai_client.embeddings.create(
@@ -139,7 +262,7 @@ async def generate_embedding(text: str) -> List[float]:
         )
         return response.data[0].embedding
     else:
-        raise ValueError("No embedding method available. Please provide an OpenAI API key or a custom embedding function.")
+        raise ValueError("No embedding method available. Please provide an OpenAI API key or install sentence-transformers.")
 
 async def process_query(query: str) -> str:
     """
@@ -261,7 +384,22 @@ if __name__ == "__main__":
     print(f"  Embedding model: {config.embedding_model}")
     print(f"  Max results: {config.max_results}")
     print(f"  Using Anthropic API: {config.use_anthropic}")
-    print(f"  Custom embedding: {'Yes' if custom_embedding_function else 'No'}")
+    
+    # Print embedding model details
+    model_type = "Unknown"
+    if hf_model:
+        model_type = "Hugging Face (FREE)"
+    elif openai_client:
+        model_type = "OpenAI (PAID)"
+    elif custom_embedding_function:
+        model_type = "Custom"
+    
+    print(f"  Embedding method: {model_type}")
+    
+    if stored_model:
+        print(f"  Database created with: {stored_model}")
+        if model_type != "Unknown":
+            print(f"  Using compatible model: {config.embedding_model}")
     
     # Set binary mode for stdin/stdout to avoid encoding issues
     if hasattr(sys.stdout, 'reconfigure'):

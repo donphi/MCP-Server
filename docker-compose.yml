@@ -29,6 +29,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.server
+    stdin_open: true
     volumes:
       - ./db:/db
       - ./config:/config
