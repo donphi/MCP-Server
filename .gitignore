@@ -42,6 +42,8 @@ ENV/
 # Data files (except README)
 /data/*
 !/data/README.md
+/data/DaisyUI.txt
+/data/Tailwinddoc.txt
 
 # IDE
 .idea/
@@ -55,11 +57,5 @@ Thumbs.db
 
 # App
 mcp-config.json
-data/DaisyUI.txt
-data/Tailwinddoc.txt
-db//db/*
-# Except for .gitkeep
-!/db/.gitkeep
-.roo
-memory-bank//memory-bank/*
-mcp-config.json
+.roo/
+memory-bank/
