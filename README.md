@@ -4,11 +4,13 @@
 
 The [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) is a new standard created by Anthropic to enable AI assistants to access external tools and data sources. This protocol allows AI models to extend their capabilities beyond their training data by connecting to specialized services like this MCP server.
 
+By implementing the MCP standard, this server enables AI assistants to query and retrieve information from your custom document collection, effectively extending their knowledge base with your specific content.
+
 ## 🧠 Extend LLM Knowledge with Up-to-Date Information
 
 This Model Context Protocol (MCP) server lets you overcome one of the biggest limitations of large language models: knowledge cutoffs. By creating your own MCP server, you can feed AI assistants up-to-date information about:
 
-- **Latest Framework Documentation**: Use content not in LLM training data (React 19, Angular 17, Vue 3.5+, Tailwind CSS 4.0, etc.)
+- **Latest Framework Documentation**: Use content not in LLM training data (React 19, Angular 17, Vue 3.4+, etc.)
 - **Private Codebases**: Help AI assistants understand your proprietary code patterns and structures
 - **Technical Specifications**: Import documentation on new APIs, protocols, or tools
 
@@ -130,47 +132,53 @@ This will:
 - Generate embeddings
 - Store the embeddings in the vector database (creates a `chroma.sqlite3` file in the `db/` directory)
 
-### 🔗 Connecting to Roo
+### 🔗 Connecting to an MCP-Compatible AI Assistant
 
-If you're using Roo as your AI assistant, follow these steps:
+The MCP server needs to be configured with your AI assistant. We provide scripts to generate the configuration:
 
 #### For macOS/Linux:
 
 1. Make the setup script executable and run it:
    ```bash
-   chmod +x setup-roo-mcp.sh
-   ./setup-roo-mcp.sh
+   chmod +x setup-mcpServer-json.sh
+   ./setup-mcpServer-json.sh
    ```
 
 2. This will create a `mcp-config.json` file with the correct configuration.
 
-3. Add the configuration to Roo:
-   - In Roo, click the "MCP Server" button/tab in the sidebar
-   - Enable the "Enable MCP Servers" toggle
-   - Click "Edit MCP Settings"
-   - Copy and paste the entire contents of the mcp-config.json file
-   - Save the settings
+3. Add the configuration to your AI assistant.
 
 #### For Windows:
 
-1. Double-click on the `setup-roo-mcp.bat` file or run it from Command Prompt:
+1. Double-click on the `setup-mcpServer-json.bat` file or run it from Command Prompt:
    ```cmd
-   setup-roo-mcp.bat
+   setup-mcpServer-json.bat
    ```
 
 2. This will create a `mcp-config.json` file with the correct configuration.
 
-3. Add the configuration to Roo (same steps as for macOS/Linux).
+3. Add the configuration to your AI assistant.
+
+#### Example: Configuring with Roo
+
+If you're using Roo as your AI assistant:
+
+1. Run the appropriate setup script for your platform to generate the configuration file
+2. In Roo, click the "MCP Server" button/tab in the sidebar
+3. Enable the "Enable MCP Servers" toggle
+4. Click "Edit MCP Settings"
+5. Copy and paste the entire contents of the mcp-config.json file
+6. Save the settings
 
 ## 🧩 Using the MCP Server
 
-Once configured, you can use the MCP server with an AI assistant that supports MCP. With Roo, you can use it in two ways:
+Once configured, you can use the MCP server with an AI assistant that supports MCP. With compatible assistants like Roo, you can use it in two ways:
 
-1. **Automatic mode** (with `autoQuery: true`): Ask questions normally, and Roo will automatically check your vector database for relevant information.
+1. **Automatic mode** (with `autoQuery: true`): Ask questions normally, and the AI will automatically check your vector database for relevant information.
 
    Example: "What are the key features of React 19?"
 
-2. **Explicit tool usage**: Directly ask Roo to use a specific tool.
+2. **Explicit tool usage**: Directly ask the AI to use a specific tool.
 
    Example: "Use the search_content tool to find information about React 19 Compiler."
 
@@ -214,8 +222,8 @@ mcp-server/
 ├── .env.example
 ├── run-mcp-server.sh       # For macOS/Linux
 ├── run-mcp-server.bat      # For Windows
-├── setup-roo-mcp.sh        # Setup script for macOS/Linux
-├── setup-roo-mcp.bat       # Setup script for Windows
+├── setup-mcpServer-json.sh # Setup script for macOS/Linux
+├── setup-mcpServer-json.bat # Setup script for Windows
 ├── src/
 │   ├── pipeline.py
 │   ├── server.py
@@ -239,7 +247,7 @@ mcp-server/
 - **API key issues**: Not to worry! You can use the free local embedding models without any API keys.
 - **Missing sentence-transformers package**: If you select a free model, the system will automatically install the required package.
 - **Chroma database not found**: Make sure you've run the pipeline to process your documents first.
-- **Connection issues in Roo**: Verify the path in your MCP configuration points to the correct location of the run script.
+- **Connection issues**: Verify the path in your MCP configuration points to the correct location of the run script.
 - **Windows path issues**: If you encounter path problems on Windows, ensure paths use double backslashes (\\\\) in the JSON configuration.
 - **Embedding model mismatch**: The server automatically detects which model was used to create the database and uses the same model for retrieval.
 

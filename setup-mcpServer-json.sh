@@ -33,4 +33,4 @@ cat > "$SCRIPT_DIR/mcp-config.json" << EOL
 EOL
 
 echo "MCP configuration file created at: $SCRIPT_DIR/mcp-config.json"
-echo "Add this file to Roo settings by following the instructions in the README"
+echo "Add this file to your AI assistant's MCP settings by following the instructions in the README"
