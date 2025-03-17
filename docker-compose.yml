@@ -10,17 +10,14 @@ services:
       - ./db:/db
       - ./output:/output
       - ./config:/config
+      - ./.env:/app/.env:ro
+    env_file:
+      - .env
     environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
-      - CHUNK_SIZE=${CHUNK_SIZE:-1000}
-      - CHUNK_OVERLAP=${CHUNK_OVERLAP:-200}
-      - BATCH_SIZE=${BATCH_SIZE:-10}
       - DB_PATH=/db
       - DATA_DIR=/data
       - OUTPUT_DIR=/output
       - CONFIG_PATH=/config/pipeline_config.json
-      - SUPPORTED_EXTENSIONS=${SUPPORTED_EXTENSIONS:-.md,.txt,.pdf,.docx,.doc}
       - SPACY_MODEL=en_core_web_md
 
   server:
@@ -30,14 +27,11 @@ services:
     volumes:
       - ./db:/db
       - ./config:/config
+      - ./.env:/app/.env:ro
+    env_file:
+      - .env
     environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
       - DB_PATH=/db
       - CONFIG_PATH=/config/server_config.json
-      - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-3-7-sonnet-20240307}
-      - MAX_RESULTS=${MAX_RESULTS:-10}
-      - USE_ANTHROPIC=${USE_ANTHROPIC:-true}
       - TRANSPORT=stdio
       - SPACY_MODEL=en_core_web_md
