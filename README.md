@@ -138,7 +138,21 @@ This will:
 - Generate embeddings
 - Store the embeddings in the vector database (creates a `chroma.sqlite3` file in the `db/` directory)
 
-### 🔗 Connecting to an MCP-Compatible AI Assistant
+**⚠️ IMPORTANT NEXT STEP:** After processing your files, you MUST build the server before running it. See the next section.
+
+### 🔧 Building the MCP Server
+
+**Important:** After processing your documents, you need to build the server component before running it:
+
+```bash
+docker-compose build server
+```
+
+> **Note for Windows users**: This step is critical before running the MCP server. Without building the server image, you'll encounter an "invalid reference format" error when trying to run the server.
+
+The updated run scripts for Linux/macOS will automatically build the server image if it's missing, but it's still recommended to build it manually for better performance and to avoid unexpected delays when first running the server.
+
+### � Connecting to an MCP-Compatible AI Assistant
 
 The MCP server needs to be configured with your AI assistant. We provide scripts to generate the configuration:
 
@@ -268,6 +282,7 @@ mcp-server/
 ## ❓ Troubleshooting
 
 - **Docker not found**: Ensure Docker is installed and running. Check with `docker --version`.
+- **"Invalid reference format" error**: This common error occurs when you try to run the MCP server without building the server image first. Make sure to run `docker-compose build server` before attempting to run the server.
 - **API key issues**: Not to worry! You can use the free local embedding models without any API keys.
 - **Missing sentence-transformers package**: If you select a free model, the system will automatically install the required package.
 - **Chroma database not found**: Make sure you've run the pipeline to process your documents first.

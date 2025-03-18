@@ -21,12 +21,22 @@ if %ERRORLEVEL% NEQ 0 (
   exit /b 1
 )
 
-rem Check if Docker image exists and build it if needed
-docker images | findstr "mcp-server-server" > nul
+rem Check if Docker Compose is installed
+docker-compose --version > nul 2>&1
 if %ERRORLEVEL% NEQ 0 (
-  echo Docker image 'mcp-server-server' not found.
-  echo Building Docker image now...
-  docker build -t mcp-server-server -f Dockerfile.server .
+  echo ERROR: Docker Compose is not installed!
+  echo Please install Docker Desktop for Windows (which includes Docker Compose) and try again.
+  pause
+  exit /b 1
+)
+
+rem Check if Docker image exists and build it if needed
+echo Checking for Docker image...
+docker-compose images server | findstr "server" > nul
+if %ERRORLEVEL% NEQ 0 (
+  echo Docker image for server not found.
+  echo Building Docker image now using docker-compose...
+  docker-compose build server
   if %ERRORLEVEL% NEQ 0 (
     echo ERROR: Failed to build Docker image!
     pause
@@ -54,18 +64,7 @@ if not defined USE_ANTHROPIC set USE_ANTHROPIC=true
 echo Starting MCP server...
 echo Using embedding model: !EMBEDDING_MODEL!
 
-rem Run the Docker container
-docker run -i --rm ^
-  --name mcp-server ^
-  -v "%cd%\db:/db" ^
-  -v "%cd%\config:/config" ^
-  -e OPENAI_API_KEY=!OPENAI_API_KEY! ^
-  -e ANTHROPIC_API_KEY=!ANTHROPIC_API_KEY! ^
-  -e DB_PATH=/db ^
-  -e CONFIG_PATH=/config/server_config.json ^
-  -e EMBEDDING_MODEL=!EMBEDDING_MODEL! ^
-  -e CLAUDE_MODEL=!CLAUDE_MODEL! ^
-  -e MAX_RESULTS=!MAX_RESULTS! ^
-  -e USE_ANTHROPIC=!USE_ANTHROPIC! ^
-  -e TRANSPORT=stdio ^
-  mcp-server-server
+rem Run the server with docker-compose
+echo Running MCP server with docker-compose...
+set "TRANSPORT=stdio"
+docker-compose run --rm -T server
