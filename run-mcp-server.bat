@@ -4,47 +4,45 @@ setlocal enabledelayedexpansion
 rem Change to the directory where the batch file is located
 cd /d "%~dp0"
 
-echo Checking MCP server prerequisites...
-
 rem Check if .env file exists
 if not exist ".env" (
-    echo ERROR: .env file not found!
-    echo Please run setup-mcpServer-json.bat first or create a .env file from .env.example
-    pause
-    exit /b 1
+  echo ERROR: .env file not found!
+  echo Please run setup-mcpServer-json.bat first or create a .env file from .env.example
+  pause
+  exit /b 1
 )
 
 rem Check if Docker is installed
 docker --version > nul 2>&1
 if %ERRORLEVEL% NEQ 0 (
-    echo ERROR: Docker is not installed or not running!
-    echo Please install Docker Desktop for Windows and try again.
-    pause
-    exit /b 1
+  echo ERROR: Docker is not installed or not running!
+  echo Please install Docker Desktop for Windows and try again.
+  pause
+  exit /b 1
 )
 
 rem Check if Docker image exists and build it if needed
 docker images | findstr "mcp-server-server" > nul
 if %ERRORLEVEL% NEQ 0 (
-    echo Docker image 'mcp-server-server' not found.
-    echo Building Docker image (this may take a few minutes)...
-    docker build -t mcp-server-server -f Dockerfile.server .
-    if %ERRORLEVEL% NEQ 0 (
-        echo ERROR: Failed to build Docker image!
-        pause
-        exit /b 1
-    )
-    echo Docker image built successfully.
+  echo Docker image 'mcp-server-server' not found.
+  echo Building Docker image now...
+  docker build -t mcp-server-server -f Dockerfile.server .
+  if %ERRORLEVEL% NEQ 0 (
+    echo ERROR: Failed to build Docker image!
+    pause
+    exit /b 1
+  )
+  echo Docker image built successfully.
 )
 
 rem Load environment variables from .env file
 for /F "tokens=*" %%A in (.env) do (
-    set line=%%A
-    if not "!line:~0,1!"=="#" (
-        if not "!line!"=="" (
-            set "!line!"
-        )
+  set line=%%A
+  if not "!line:~0,1!"=="#" (
+    if not "!line!"=="" (
+      set "!line!"
     )
+  )
 )
 
 rem Set default values for environment variables if not set
@@ -71,4 +69,3 @@ docker run -i --rm ^
   -e USE_ANTHROPIC=!USE_ANTHROPIC! ^
   -e TRANSPORT=stdio ^
   mcp-server-server
-  
