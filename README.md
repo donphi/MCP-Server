@@ -142,7 +142,7 @@ This will:
 
 ### 🔧 Building the MCP Server
 
-**Important:** After processing your documents, you need to build the server component before running it:
+**REQUIRED STEP:** After processing your documents, you need to build the server component before running it:
 
 ```bash
 docker-compose build server
@@ -152,7 +152,12 @@ docker-compose build server
 
 The updated run scripts for Linux/macOS will automatically build the server image if it's missing, but it's still recommended to build it manually for better performance and to avoid unexpected delays when first running the server.
 
-### � Connecting to an MCP-Compatible AI Assistant
+### 🔌 Connecting to an MCP-Compatible AI Assistant
+
+⚠️ **REMINDER**: Before configuring your MCP server connection, make sure you've completed these steps:
+1. Built the pipeline (`docker-compose build pipeline`)
+2. Run the pipeline (`docker-compose run pipeline`)
+3. Built the server (`docker-compose build server`) - **This step is critical and often missed!**
 
 The MCP server needs to be configured with your AI assistant. We provide scripts to generate the configuration:
 
@@ -178,6 +183,8 @@ The MCP server needs to be configured with your AI assistant. We provide scripts
 2. This will create a `mcp-config.json` file with the correct configuration.
 
 3. Add the configuration to your AI assistant.
+
+> **IMPORTANT FOR WINDOWS USERS**: The `run-mcp-server.bat` file has been updated to use Docker Compose consistently, which resolves the "invalid reference format" error that some Windows users were experiencing. If you're still encountering this issue, make sure you're using the latest version of the batch file from this repository.
 
 #### Example: Configuring with Roo
 
@@ -282,7 +289,9 @@ mcp-server/
 ## ❓ Troubleshooting
 
 - **Docker not found**: Ensure Docker is installed and running. Check with `docker --version`.
-- **"Invalid reference format" error**: This common error occurs when you try to run the MCP server without building the server image first. Make sure to run `docker-compose build server` before attempting to run the server.
+- **"Invalid reference format" error**: This common error can occur for two reasons:
+  1. **Missing build step**: You tried to run the MCP server without building the server image first. Always run `docker-compose build server` before attempting to run the server.
+  2. **Mixing Docker and Docker Compose**: The Windows batch file has been updated to use Docker Compose consistently. If you're still encountering this error, make sure you're using the latest version of the batch files from this repository.
 - **API key issues**: Not to worry! You can use the free local embedding models without any API keys.
 - **Missing sentence-transformers package**: If you select a free model, the system will automatically install the required package.
 - **Chroma database not found**: Make sure you've run the pipeline to process your documents first.
