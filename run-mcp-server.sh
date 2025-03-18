@@ -58,3 +58,4 @@ docker run -i --rm \
   -e USE_ANTHROPIC=${USE_ANTHROPIC} \
   -e TRANSPORT=stdio \
   mcp-server-server
+  
