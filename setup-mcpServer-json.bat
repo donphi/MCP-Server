@@ -8,28 +8,36 @@ set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
 rem Path to the run-mcp-server.bat script
 set "MCP_SCRIPT_PATH=%SCRIPT_DIR%\run-mcp-server.bat"
 
+rem Convert backslashes to escaped backslashes for JSON
+set "JSON_PATH=%MCP_SCRIPT_PATH:\=\\%"
+
 rem Create the MCP configuration file
-echo {> "%SCRIPT_DIR%\mcp-config.json"
-echo   "mcpServers": {>> "%SCRIPT_DIR%\mcp-config.json"
-echo     "mcp-server": {>> "%SCRIPT_DIR%\mcp-config.json"
-echo       "enabled": true,>> "%SCRIPT_DIR%\mcp-config.json"
-echo       "transport": "stdio",>> "%SCRIPT_DIR%\mcp-config.json"
-echo       "command": "%MCP_SCRIPT_PATH:\=\\%",>> "%SCRIPT_DIR%\mcp-config.json"
-echo       "description": "Local MCP server for document retrieval and search",>> "%SCRIPT_DIR%\mcp-config.json"
-echo       "alwaysAllow": [>> "%SCRIPT_DIR%\mcp-config.json"
-echo         "read_md_files",>> "%SCRIPT_DIR%\mcp-config.json"
-echo         "search_content",>> "%SCRIPT_DIR%\mcp-config.json"
-echo         "get_context",>> "%SCRIPT_DIR%\mcp-config.json"
-echo         "project_structure",>> "%SCRIPT_DIR%\mcp-config.json"
-echo         "suggest_implementation">> "%SCRIPT_DIR%\mcp-config.json"
-echo       ],>> "%SCRIPT_DIR%\mcp-config.json"
-echo       "auth": {>> "%SCRIPT_DIR%\mcp-config.json"
-echo         "type": "none">> "%SCRIPT_DIR%\mcp-config.json"
-echo       },>> "%SCRIPT_DIR%\mcp-config.json"
-echo       "autoQuery": true>> "%SCRIPT_DIR%\mcp-config.json"
-echo     }>> "%SCRIPT_DIR%\mcp-config.json"
-echo   }>> "%SCRIPT_DIR%\mcp-config.json"
-echo }>> "%SCRIPT_DIR%\mcp-config.json"
+(
+    echo {
+    echo   "mcpServers": {
+    echo     "mcp-server": {
+    echo       "enabled": true,
+    echo       "transport": "stdio",
+    echo       "command": "%JSON_PATH%",
+    echo       "description": "Local MCP server for document retrieval and search",
+    echo       "alwaysAllow": [
+    echo         "read_md_files",
+    echo         "search_content",
+    echo         "get_context",
+    echo         "project_structure",
+    echo         "suggest_implementation"
+    echo       ],
+    echo       "auth": {
+    echo         "type": "none"
+    echo       },
+    echo       "autoQuery": true
+    echo     }
+    echo   }
+    echo }
+) > "%SCRIPT_DIR%\mcp-config.json"
 
 echo MCP configuration file created at: %SCRIPT_DIR%\mcp-config.json
+echo.
+echo Full command path: %JSON_PATH%
+echo.
 echo Add this file to your AI assistant's MCP settings by following the instructions in the README
