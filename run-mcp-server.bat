@@ -66,5 +66,14 @@ echo Using embedding model: !EMBEDDING_MODEL!
 
 rem Run the server with docker-compose
 echo Running MCP server with docker-compose...
-set "TRANSPORT=stdio"
-docker-compose run --rm -T server
+docker-compose run --rm ^
+  -e OPENAI_API_KEY=!OPENAI_API_KEY! ^
+  -e ANTHROPIC_API_KEY=!ANTHROPIC_API_KEY! ^
+  -e DB_PATH=/db ^
+  -e CONFIG_PATH=/config/server_config.json ^
+  -e EMBEDDING_MODEL=!EMBEDDING_MODEL! ^
+  -e CLAUDE_MODEL=!CLAUDE_MODEL! ^
+  -e MAX_RESULTS=!MAX_RESULTS! ^
+  -e USE_ANTHROPIC=!USE_ANTHROPIC! ^
+  -e TRANSPORT=stdio ^
+  server
