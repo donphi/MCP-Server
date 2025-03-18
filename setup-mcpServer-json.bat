@@ -8,8 +8,8 @@ set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
 rem Path to the run-mcp-server.bat script
 set "MCP_SCRIPT_PATH=%SCRIPT_DIR%\run-mcp-server.bat"
 
-rem Convert backslashes to escaped backslashes for JSON
-set "JSON_PATH=%MCP_SCRIPT_PATH:\=\\%"
+rem Convert backslashes to forward slashes for JSON
+set "JSON_PATH=%MCP_SCRIPT_PATH:\=/%"
 
 rem Create the MCP configuration file
 (
